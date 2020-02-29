@@ -36,9 +36,13 @@
 // Color inverse. 1 or 0 = set or reset a bit if set a colored pixel
 #define IF_INVERT_COLOR     1
 
-#include "fonts.h"
+#include "Print.h"
+//#include "fonts.h"
+#include "gfxfont.h"
+#include "Arduino.h"
 
-class Paint {
+
+class Paint : public Print {
 public:
     Paint(unsigned char* image, int width, int height);
     ~Paint();
@@ -52,8 +56,8 @@ public:
     unsigned char* GetImage(void);
     void DrawAbsolutePixel(int x, int y, int colored);
     void DrawPixel(int x, int y, int colored);
-    void DrawCharAt(int x, int y, char ascii_char, sFONT* font, int colored);
-    void DrawStringAt(int x, int y, const char* text, sFONT* font, int colored);
+//    void DrawCharAt(int x, int y, char ascii_char, sFONT* font, int colored);
+//    void DrawStringAt(int x, int y, const char* text, sFONT* font, int colored);
     void DrawLine(int x0, int y0, int x1, int y1, int colored);
     void DrawHorizontalLine(int x, int y, int width, int colored);
     void DrawVerticalLine(int x, int y, int height, int colored);
@@ -62,11 +66,35 @@ public:
     void DrawCircle(int x, int y, int radius, int colored);
     void DrawFilledCircle(int x, int y, int radius, int colored);
 
+    void DrawCharAt(int16_t x, int16_t y, unsigned char c);
+    void setFont(const GFXfont *f = NULL);
+
+    using Print::write;
+
+    virtual size_t write(uint8_t);
+
+
+    void setTextColor(int c) { textcolor = c; }
+
+    void setCursor(int16_t x, int16_t y) {
+        cursor_x = x;
+        cursor_y = y;
+    }
+
 private:
     unsigned char* image;
     int width;
     int height;
     int rotate;
+    int textcolor;
+    int16_t cursor_x;       ///< x location to start print()ing text
+    int16_t cursor_y;       ///< y location to start print()ing text
+    GFXfont *gfxFont;   ///< Pointer to special font
+    uint8_t textsize_x;  ///< Desired magnification in X-axis of text to print()
+    uint8_t textsize_y;     ///< Desired magnification in Y-axis of text to print()
+    boolean wrap;       ///< If set, 'wrap' text at right edge of display
+
+
 };
 
 #endif

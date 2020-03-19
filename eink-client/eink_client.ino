@@ -3,21 +3,35 @@
 #include "epd2in9/epdpaint.h"
 #include "epd2in9/DialogInput_bold_16.h"
 
+//#include <epd2in9.h>
+//#include <epdpaint.h>
+//#include <DialogInput_bold_16.h>
+
+#include "RFM69/RFM69.h"
+//#include <RFM69_ATC.h>
+
 #include <SPI.h>
 //#include <epd2in9.h>
 //#include <epdpaint.h>
 //#include "imagedata.h"
 
+// RFM69 defines
+#define NODEID        2    // keep UNIQUE for each node on same network
+#define NETWORKID     100  // keep IDENTICAL on all nodes that talk to each other
+#define GATEWAYID     1    // "central" node
+#define FREQUENCY   RF69_433MHZ
+#define ENCRYPTKEY    "sampleEncryptKey"
+
+RFM69 radio(3, 2, false);
+byte ackCount = 0;
+uint32_t packetCount = 0;
+
+
+// Eink defines
 #define COLORED     0
 #define UNCOLORED   1
 
-/**
-  * Due to RAM not enough in Arduino UNO, a frame buffer is not allowed.
-  * In this case, a smaller image buffer is allocated and you have to
-  * update a partial display several times.
-  * 1 byte = 8 pixels, therefore you have to set 8*N pixels at a time.
-  */
-unsigned char image[1024];
+unsigned char image[1024]; // image buffer
 Paint paint(image, 0, 0);    // width should be the multiple of 8
 Epd epd;
 unsigned long time_start_ms;
@@ -26,6 +40,13 @@ unsigned long time_now_s;
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(9600);
+
+    radio.initialize(FREQUENCY, NODEID, NETWORKID);
+    radio.encrypt(ENCRYPTKEY);
+    char buff[50];
+    sprintf(buff, "\nListening at %d Mhz...", FREQUENCY == RF69_433MHZ ? 433 : FREQUENCY == RF69_868MHZ ? 868 : 915);
+    Serial.println(buff);
+
     if (epd.Init(lut_full_update) != 0) {
         Serial.print("e-Paper init failed");
         return;
@@ -114,10 +135,45 @@ void loop() {
 //    time_string[3] = time_now_s % 60 / 10 + '0';
 //    time_string[4] = time_now_s % 60 % 10 + '0';
 
+    if (radio.receiveDone()) {
+        Serial.print("#[");
+        Serial.print(++packetCount);
+        Serial.print(']');
+        Serial.print('[');
+        Serial.print(radio.SENDERID, DEC);
+        Serial.print("] ");
+
+        for (byte i = 0; i < radio.DATALEN; i++)
+            Serial.print((char) radio.DATA[i]);
+        Serial.print("   [RX_RSSI:");
+        Serial.print(radio.RSSI);
+        Serial.print("]");
+
+        if (radio.ACKRequested()) {
+            byte theNodeID = radio.SENDERID;
+            radio.sendACK();
+            Serial.print(" - ACK sent.");
+
+            // When a node requests an ACK, respond to the ACK
+            // and also send a packet requesting an ACK (every 3rd one only)
+            // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
+            if (ackCount++ % 3 == 0) {
+                Serial.print(" Pinging node ");
+                Serial.print(theNodeID);
+                Serial.print(" - ACK...");
+                delay(3); //need this when sending right after reception .. ?
+                if (radio.sendWithRetry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
+                    Serial.print("ok!");
+                else Serial.print("nothing");
+            }
+        }
+        Serial.println();
+    }
+
+
     paint.SetWidth(20);
     paint.SetHeight(296);
     paint.SetRotate(ROTATE_90);
-
 
     paint.Clear(UNCOLORED);
     paint.setTextColor(COLORED);
@@ -129,7 +185,7 @@ void loop() {
     paint.print("  Hello world!");
 //    paint.DrawCharAt(0,4,'a', &Open_Sans_Regular_10, COLORED);
 //    paint.DrawCharAt(12,4,'h', &Open_Sans_Regular_10, COLORED);
-    epd.SetFrameMemory(paint.GetImage(), 128-20, 0, paint.GetWidth(), paint.GetHeight());
+    epd.SetFrameMemory(paint.GetImage(), 128 - 20, 0, paint.GetWidth(), paint.GetHeight());
     epd.DisplayFrame();
 
     delay(100);

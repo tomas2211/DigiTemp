@@ -43,9 +43,6 @@ void setup() {
 
     radio.initialize(FREQUENCY, NODEID, NETWORKID);
     radio.encrypt(ENCRYPTKEY);
-    char buff[50];
-    sprintf(buff, "\nListening at %d Mhz...", FREQUENCY == RF69_433MHZ ? 433 : FREQUENCY == RF69_868MHZ ? 868 : 915);
-    Serial.println(buff);
 
     if (epd.Init(lut_full_update) != 0) {
         Serial.print("e-Paper init failed");

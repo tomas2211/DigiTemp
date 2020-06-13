@@ -28,9 +28,6 @@ void setup() {
     Serial.println("INIT radio");
     radio.initialize(FREQUENCY, NODEID, NETWORKID);
     radio.encrypt(ENCRYPTKEY);
-
-    Serial.println("RFM69_ATC Enabled (Auto Transmission Control)");
-
 }
 
 void sendBuffer() {
@@ -42,8 +39,8 @@ void sendBuffer() {
             Serial.print((char) buff[i]);
 
         if (radio.sendWithRetry(RECVID, buff, buff_idx))
-            Serial.println(" ok!");
-        else Serial.println(" nothing...");
+            Serial.println(" --- ok!");
+        else Serial.println(" --- no ACK");
     }
     buff_idx = 0;
 }
@@ -52,6 +49,7 @@ void loop() {
     //process any serial input
     while (Serial.available() > 0) {
         char input = Serial.read();
+        Serial.write(input);
         if (input == '\n') {
             sendBuffer();
         } else {
@@ -64,36 +62,36 @@ void loop() {
     }
 
     if (radio.receiveDone()) {
-        Serial.print("#[");
+        Serial.print("Recv - packets:");
         Serial.print(++packetCount);
-        Serial.print(']');
-        Serial.print('[');
+        Serial.print(' ');
+        Serial.print('id: ');
         Serial.print(radio.SENDERID, DEC);
-        Serial.print("] ");
+        Serial.print(" [RX_RSSI: ");
+        Serial.print(radio.RSSI);
+        Serial.print("]");
 
         for (byte i = 0; i < radio.DATALEN; i++)
             Serial.print((char) radio.DATA[i]);
-        Serial.print("   [RX_RSSI:");
-        Serial.print(radio.RSSI);
-        Serial.print("]");
+
 
         if (radio.ACKRequested()) {
             byte theNodeID = radio.SENDERID;
             radio.sendACK();
-            Serial.print(" - ACK sent.");
+            Serial.print(" --- ACK sent.");
 
             // When a node requests an ACK, respond to the ACK
             // and also send a packet requesting an ACK (every 3rd one only)
             // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
-            if (ackCount++ % 3 == 0) {
-                Serial.print(" Pinging node ");
-                Serial.print(theNodeID);
-                Serial.print(" - ACK...");
-                delay(3); //need this when sending right after reception .. ?
-                if (radio.sendWithRetry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
-                    Serial.print("ok!");
-                else Serial.print("nothing");
-            }
+//            if (ackCount++ % 3 == 0) {
+//                Serial.print(" Pinging node ");
+//                Serial.print(theNodeID);
+//                Serial.print(" - ACK...");
+//                delay(3); //need this when sending right after reception .. ?
+//                if (radio.sendWithRetry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
+//                    Serial.print("ok!");
+//                else Serial.print("nothing");
+//            }
         }
         Serial.println();
     }

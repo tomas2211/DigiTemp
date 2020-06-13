@@ -31,7 +31,7 @@ set(${PROJECT_NAME}_SKETCH dt_tx.ino)
 
 #### Additional settings for programmer. From programmers.txt
 set(${PROJECT_NAME}_PROGRAMMER arduinoasisp)
-set(${PROJECT_NAME}_PORT /dev/ttyUSB2)
+set(${PROJECT_NAME}_PORT /dev/ttyUSB0)
 # set(pro.upload.speed 9600)
 
 ## Verbose build process
